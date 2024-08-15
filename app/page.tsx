@@ -17,14 +17,14 @@ interface NewsItem {
 }
 
 export default function Component() {
-  const [newsItems, setNewsItems] = useState([])
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([])
 
   useEffect(() => {
     const fetchNews = async () => {
       try {
         //const response = await axios.get('https://api.rss2json.com/v1/api.json?rss_url=http://feeds.bbci.co.uk/news/business/rss.xml')
         const response = await axios.get('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fsearch.cnbc.com%2Frs%2Fsearch%2Fcombinedcms%2Fview.xml%3FpartnerId%3Dwrss01%26id%3D100727362')
-        const items = response.data.items.slice(0, 5).map(item => ({
+        const items = response.data.items.slice(0, 5).map((item: any) => ({
           title: item.title,
           description: item.description,
           date: new Date(item.pubDate).toISOString().split('T')[0],
@@ -99,7 +99,7 @@ export default function Component() {
   )
 }
 
-function ArrowDownIcon(props) {
+function ArrowDownIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
@@ -120,7 +120,7 @@ function ArrowDownIcon(props) {
 }
 
 
-function ArrowUpIcon(props) {
+function ArrowUpIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
