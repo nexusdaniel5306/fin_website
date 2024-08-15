@@ -22,22 +22,32 @@ export default function Component() {
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        //const response = await axios.get('https://api.rss2json.com/v1/api.json?rss_url=http://feeds.bbci.co.uk/news/business/rss.xml')
         const response = await axios.get('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fsearch.cnbc.com%2Frs%2Fsearch%2Fcombinedcms%2Fview.xml%3FpartnerId%3Dwrss01%26id%3D100727362')
-        const items = response.data.items.slice(0, 5).map((item: any) => ({
-          title: item.title,
-          description: item.description,
-          date: new Date(item.pubDate).toISOString().split('T')[0],
-          link: item.link,
-          sentiment: Math.random() // This is a placeholder. You'd need a real sentiment analysis service.
-        }))
+        const items = response.data.items
+          .map((item: any) => ({
+            title: item.title,
+            description: item.description,
+            date: new Date(item.pubDate),
+            link: item.link,
+            sentiment: Math.random() // This is still a placeholder
+          }))
+          .sort((a: NewsItem, b: NewsItem) => b.date.getTime() - a.date.getTime()) // Sort by date, most recent first
+          .slice(0, 5) // Take only the 5 most recent items
+          .map((item: NewsItem) => ({
+            ...item,
+            date: item.date.toISOString().split('T')[0] // Format date as before
+          }))
         setNewsItems(items)
       } catch (error) {
         console.error("Error fetching news:", error)
       }
     }
 
-    fetchNews()
+    fetchNews() // Fetch immediately on mount
+
+    const intervalId = setInterval(fetchNews, 5 * 60 * 1000) // Fetch every 5 minutes
+
+    return () => clearInterval(intervalId) // Clean up on unmount
   }, [])
 
   const [isPopupOpen, setIsPopupOpen] = useState(false)
