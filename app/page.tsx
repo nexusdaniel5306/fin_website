@@ -11,7 +11,7 @@ import axios from "axios"
 interface NewsItem {
   title: string;
   description: string;
-  date: Date; // Change this to Date instead of string
+  date: string;
   link: string;
   sentiment: number;
 }
@@ -27,16 +27,12 @@ export default function Component() {
           .map((item: any) => ({
             title: item.title,
             description: item.description,
-            date: new Date(item.pubDate), // Parse the date string into a Date object
+            date: item.pubDate,
             link: item.link,
-            sentiment: Math.random() // This is still a placeholder
+            sentiment: Math.random()
           }))
-          .sort((a: NewsItem, b: NewsItem) => b.date.getTime() - a.date.getTime()) // Sort by date, most recent first
-          .slice(0, 5) // Take only the 5 most recent items
-          .map((item: NewsItem) => ({
-            ...item,
-            date: item.date.toISOString().split('T')[0] // Format date as before
-          }))
+          .sort((a: NewsItem, b: NewsItem) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 5)
         setNewsItems(items)
       } catch (error) {
         console.error("Error fetching news:", error)
@@ -72,7 +68,7 @@ export default function Component() {
               <div>
                 <h2 className="text-lg font-semibold">{item.title}</h2>
                 <p className="text-muted-foreground mt-2">{item.description}</p>
-                <p className="text-sm text-muted-foreground mt-2">{item.date.toLocaleDateString()}</p>
+                <p className="text-sm text-muted-foreground mt-2">{new Date(item.date).toLocaleDateString()}</p>
               </div>
               <div className="flex flex-col items-end justify-between h-full ml-4">
                 {item.sentiment > 0.5 ? (
