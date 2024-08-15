@@ -11,7 +11,7 @@ import axios from "axios"
 interface NewsItem {
   title: string;
   description: string;
-  date: string;
+  date: Date; // Change this to Date instead of string
   link: string;
   sentiment: number;
 }
@@ -27,7 +27,7 @@ export default function Component() {
           .map((item: any) => ({
             title: item.title,
             description: item.description,
-            date: new Date(item.pubDate),
+            date: new Date(item.pubDate), // Parse the date string into a Date object
             link: item.link,
             sentiment: Math.random() // This is still a placeholder
           }))
@@ -72,7 +72,7 @@ export default function Component() {
               <div>
                 <h2 className="text-lg font-semibold">{item.title}</h2>
                 <p className="text-muted-foreground mt-2">{item.description}</p>
-                <p className="text-sm text-muted-foreground mt-2">{item.date}</p>
+                <p className="text-sm text-muted-foreground mt-2">{item.date.toLocaleDateString()}</p>
               </div>
               <div className="flex flex-col items-end justify-between h-full ml-4">
                 {item.sentiment > 0.5 ? (
