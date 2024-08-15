@@ -8,6 +8,14 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
 
+interface NewsItem {
+  title: string;
+  description: string;
+  date: string;
+  link: string;
+  sentiment: number;
+}
+
 export default function Component() {
   const [newsItems, setNewsItems] = useState([])
 
@@ -33,8 +41,8 @@ export default function Component() {
   }, [])
 
   const [isPopupOpen, setIsPopupOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState(null)
-  const handleReadMore = (item) => {
+  const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null)
+  const handleReadMore = (item: NewsItem) => {
     setSelectedItem(item)
     setIsPopupOpen(true)
   }
