@@ -1,61 +1,9 @@
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/OyscpUSNTzJ
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
-"use client"
+import { getNews, NewsItem } from "@/lib/getNews"
+import { ArrowUpIcon, ArrowDownIcon } from "./icons"
 
-import { useState, useEffect } from "react"
-import axios from "axios"
+export default async function Component() {
+  const newsItems = await getNews()
 
-interface NewsItem {
-  title: string;
-  description: string;
-  date: string;
-  link: string;
-  sentiment: number;
-}
-
-export default function Component() {
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([])
-
-  useEffect(() => {
-    const fetchNews = async () => {
-      try {
-        const response = await axios.get('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fsearch.cnbc.com%2Frs%2Fsearch%2Fcombinedcms%2Fview.xml%3FpartnerId%3Dwrss01%26id%3D100727362')
-        const items = response.data.items
-          .map((item: any) => ({
-            title: item.title,
-            description: item.description,
-            date: item.pubDate,
-            link: item.link,
-            sentiment: Math.random()
-          }))
-          .sort((a: NewsItem, b: NewsItem) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 5)
-        setNewsItems(items)
-      } catch (error) {
-        console.error("Error fetching news:", error)
-      }
-    }
-
-    fetchNews() // Fetch immediately on mount
-
-    const intervalId = setInterval(fetchNews, 5 * 60 * 1000) // Fetch every 5 minutes
-
-    return () => clearInterval(intervalId) // Clean up on unmount
-  }, [])
-
-  const [isPopupOpen, setIsPopupOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null)
-  const handleReadMore = (item: NewsItem) => {
-    setSelectedItem(item)
-    setIsPopupOpen(true)
-  }
-  const handleClosePopup = () => {
-    setIsPopupOpen(false)
-    setSelectedItem(null)
-  }
   return (
     <div className="bg-background text-foreground">
       <header className="bg-primary text-primary-foreground py-4 px-6">
@@ -82,66 +30,14 @@ export default function Component() {
                     <span>{(item.sentiment * 100).toFixed(0)}%</span>
                   </div>
                 )}
-                <button onClick={() => handleReadMore(item)} className="text-primary hover:underline mt-4">
+                <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline mt-4">
                   Read More
-                </button>
+                </a>
               </div>
             </div>
           ))}
         </div>
       </main>
-      {isPopupOpen && selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-card p-8 rounded-lg shadow-lg w-[90%] max-w-4xl">
-            <h2 className="text-2xl font-semibold">{selectedItem.title}</h2>
-            <p className="text-muted-foreground mt-4 text-lg">{selectedItem.description}</p>
-            <button onClick={handleClosePopup} className="text-primary hover:underline mt-6">
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
-  )
-}
-
-function ArrowDownIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 5v14" />
-      <path d="m19 12-7 7-7-7" />
-    </svg>
-  )
-}
-
-
-function ArrowUpIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m5 12 7-7 7 7" />
-      <path d="M12 19V5" />
-    </svg>
   )
 }
