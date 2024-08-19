@@ -1,6 +1,8 @@
 import { getNews, NewsItem } from "@/lib/getNews"
 import { ArrowUpIcon, ArrowDownIcon } from "./icons"
 
+export const revalidate = 300 // revalidate every 5 minutes
+
 export default async function Component() {
   const newsItems = await getNews()
 
