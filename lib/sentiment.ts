@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 
 import Groq from "groq-sdk"
-import { Redis } from "@upstash/redis"
+import { createClient } from "redis"
 
 export interface NewsSentiment {
   direction: "up" | "down"
@@ -36,13 +36,12 @@ const sentimentSchema = {
 } as const
 
 let groqClient: Groq | null | undefined
-let redisClient: Redis | null | undefined
+type RedisClient = ReturnType<typeof createClient>
 
-const hasRedisCredentials = () =>
-  Boolean(
-    (process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL) &&
-      (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN),
-  )
+let redisClient: RedisClient | null | undefined
+let redisConnectionPromise: Promise<RedisClient | null> | null = null
+
+const getRedisUrl = () => process.env.EPOLL_REDIS_URL || process.env.REDIS_URL || null
 
 const getGroqClient = () => {
   if (groqClient !== undefined) {
@@ -60,13 +59,45 @@ const getGroqClient = () => {
   return groqClient
 }
 
-const getRedisClient = () => {
+const getRedisClient = async () => {
   if (redisClient !== undefined) {
     return redisClient
   }
 
-  redisClient = hasRedisCredentials() ? Redis.fromEnv() : null
-  return redisClient
+  if (redisConnectionPromise) {
+    return redisConnectionPromise
+  }
+
+  const redisUrl = getRedisUrl()
+
+  if (!redisUrl) {
+    redisClient = null
+    return redisClient
+  }
+
+  const client = createClient({
+    url: redisUrl,
+  })
+
+  client.on("error", () => {
+    // Redis outages should not break page rendering.
+  })
+
+  redisConnectionPromise = client
+    .connect()
+    .then(() => {
+      redisClient = client
+      return client
+    })
+    .catch(() => {
+      redisClient = null
+      return null
+    })
+    .finally(() => {
+      redisConnectionPromise = null
+    })
+
+  return redisConnectionPromise
 }
 
 const normalizeHeadline = (title: string) =>
@@ -105,14 +136,14 @@ const parseSentiment = (value: unknown): NewsSentiment | null => {
 }
 
 const readCachedSentiment = async (title: string) => {
-  const redis = getRedisClient()
+  const redis = await getRedisClient()
 
   if (!redis) {
     return null
   }
 
   try {
-    const cachedValue = await redis.get<string>(getSentimentCacheKey(title))
+    const cachedValue = await redis.get(getSentimentCacheKey(title))
 
     if (!cachedValue) {
       return null
@@ -125,16 +156,14 @@ const readCachedSentiment = async (title: string) => {
 }
 
 const writeCachedSentiment = async (title: string, sentiment: NewsSentiment) => {
-  const redis = getRedisClient()
+  const redis = await getRedisClient()
 
   if (!redis) {
     return
   }
 
   try {
-    await redis.set(getSentimentCacheKey(title), JSON.stringify(sentiment), {
-      ex: SENTIMENT_CACHE_TTL_SECONDS,
-    })
+    await redis.setEx(getSentimentCacheKey(title), SENTIMENT_CACHE_TTL_SECONDS, JSON.stringify(sentiment))
   } catch {
     // Sentiment caching is an optimization, not a rendering requirement.
   }
