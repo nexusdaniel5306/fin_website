@@ -10,30 +10,8 @@ export interface NewsSentiment {
 }
 
 const SENTIMENT_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
-const SENTIMENT_MODEL = "openai/gpt-oss-20b"
+const SENTIMENT_MODEL = "llama-3.1-8b-instant"
 const SENTIMENT_TIMEOUT_MS = 8000
-
-const sentimentSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["direction", "confidence", "reason"],
-  properties: {
-    direction: {
-      type: "string",
-      enum: ["up", "down"],
-    },
-    confidence: {
-      type: "integer",
-      minimum: 0,
-      maximum: 100,
-    },
-    reason: {
-      type: "string",
-      minLength: 1,
-      maxLength: 160,
-    },
-  },
-} as const
 
 let groqClient: Groq | null | undefined
 type RedisClient = ReturnType<typeof createClient>
@@ -195,18 +173,13 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
         temperature: 0.2,
         max_tokens: 120,
         response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "market_sentiment",
-            strict: true,
-            schema: sentimentSchema,
-          },
+          type: "json_object",
         },
         messages: [
           {
             role: "system",
             content:
-              "You classify likely immediate market reaction to financial headlines. Return only valid JSON. Choose 'up' for likely positive market reaction and 'down' for likely negative market reaction. The confidence must be an integer from 0 to 100 representing how confident you are in the predicted direction. If the headline is ambiguous, still choose the more likely direction with lower confidence.",
+              'You classify likely immediate market reaction to financial headlines. Return only valid JSON with exactly these keys: "direction", "confidence", "reason". "direction" must be "up" or "down". "confidence" must be an integer from 0 to 100. "reason" must be a short sentence under 160 characters. Do not wrap the JSON in markdown or add any extra keys.',
           },
           {
             role: "user",
@@ -222,19 +195,28 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
     const rawContent = completion.choices[0]?.message?.content
 
     if (!rawContent) {
+      console.error("Groq sentiment response was empty", { title: cleanTitle })
       return null
     }
 
     const sentiment = parseSentiment(JSON.parse(rawContent))
 
     if (!sentiment) {
+      console.error("Groq sentiment response did not match expected shape", {
+        title: cleanTitle,
+        rawContent,
+      })
       return null
     }
 
     await writeCachedSentiment(cleanTitle, sentiment)
 
     return sentiment
-  } catch {
+  } catch (error) {
+    console.error("Groq sentiment request failed", {
+      title: cleanTitle,
+      error,
+    })
     return null
   }
 }
