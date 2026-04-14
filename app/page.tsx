@@ -14,9 +14,9 @@ export default async function Component() {
           href="https://itsdan.li"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-bold uppercase tracking-[0.2em] transition-opacity hover:opacity-70"
+          className="text-sm font-bold tracking-[0.2em] transition-opacity hover:opacity-70"
         >
-          itsdan.li
+          itsDan.Li
         </a>
       </header>
       <main className="py-8 px-6">
