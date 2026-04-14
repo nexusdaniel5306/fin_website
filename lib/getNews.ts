@@ -1,13 +1,8 @@
 import axios from "axios"
-import { getHeadlineSentiment, type NewsSentiment } from "@/lib/sentiment"
+import { getHeadlineSentiment } from "@/lib/sentiment"
+import type { NewsItem } from "@/lib/types"
 
-export interface NewsItem {
-  title: string
-  description: string
-  date: string
-  link: string
-  sentiment: NewsSentiment | null
-}
+export type { NewsItem } from "@/lib/types"
 
 interface RssItem {
   title: string
