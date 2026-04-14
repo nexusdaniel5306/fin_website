@@ -2,6 +2,7 @@
 // Learn more: https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required
 import { DM_Sans } from 'next/font/google'
 import { Space_Mono } from 'next/font/google'
+import type { Metadata } from "next"
 import { cn } from '@/lib/utils'
 import './globals.css'
 
@@ -18,6 +19,14 @@ const fontBody = Space_Mono({
   display: 'swap',
   variable: '--font-body',
 })
+
+export const metadata: Metadata = {
+  icons: {
+    icon: "/myfavicon.webp",
+    shortcut: "/myfavicon.webp",
+    apple: "/myfavicon.webp",
+  },
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
