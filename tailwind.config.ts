@@ -1,7 +1,7 @@
 import { fontFamily } from "tailwindcss/defaultTheme";
 
 /** @type {import('tailwindcss').Config} */
-export default {
+const config = {
   content: [
     "./components/**/*.{js,ts,jsx,tsx}",
     "./app/**/*.{js,ts,jsx,tsx}",
@@ -71,3 +71,5 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 };
+
+export default config;

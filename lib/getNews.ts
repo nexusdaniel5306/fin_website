@@ -1,5 +1,4 @@
 import axios from "axios"
-import { cache } from 'react'
 
 export interface NewsItem {
   title: string;

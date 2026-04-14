@@ -1,4 +1,4 @@
-import { getNews, NewsItem } from "@/lib/getNews"
+import { getNews } from "@/lib/getNews"
 import { ArrowUpIcon, ArrowDownIcon } from "./icons"
 
 export const revalidate = 300 // revalidate every 5 minutes
