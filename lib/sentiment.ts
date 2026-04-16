@@ -171,7 +171,7 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
       {
         model: SENTIMENT_MODEL,
         temperature: 0.2,
-        max_completion_tokens: 100000,
+        max_completion_tokens: 32764,
         response_format: {
           type: "json_object",
         },
