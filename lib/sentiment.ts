@@ -10,7 +10,7 @@ export interface NewsSentiment {
 }
 
 const SENTIMENT_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
-const SENTIMENT_MODEL = "llama-3.1-8b-instant"
+const SENTIMENT_MODEL = "llama-3.3-70b-versatile"
 const SENTIMENT_TIMEOUT_MS = 8000
 
 let groqClient: Groq | null | undefined
@@ -171,7 +171,7 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
       {
         model: SENTIMENT_MODEL,
         temperature: 0.2,
-        max_tokens: 120,
+        max_completion_tokens: 100000,
         response_format: {
           type: "json_object",
         },
@@ -179,7 +179,7 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
           {
             role: "system",
             content:
-              'You classify likely immediate market reaction to financial headlines. Return only valid JSON with exactly these keys: "direction", "confidence", "reason". "direction" must be "up" or "down". "confidence" must be an integer from 0 to 100. "reason" must be a short sentence under 160 characters. Do not wrap the JSON in markdown or add any extra keys.',
+              'You classify likely immediate market reaction to financial headlines. Return only valid JSON with exactly these keys: "direction", "confidence", "reason". "direction" must be "up" or "down". "confidence" must be an integer from 0 to 100. "reason" must be a short sentence under 200 characters. Do not wrap the JSON in markdown or add any extra keys.',
           },
           {
             role: "user",
