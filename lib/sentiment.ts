@@ -1,23 +1,29 @@
 import { createHash } from "node:crypto"
+import { setTimeout as sleep } from "node:timers/promises"
 
 import Groq from "groq-sdk"
 import { createClient } from "redis"
+import { SENTIMENT_MODEL_ID } from "@/lib/sentiment-model"
 
 export interface NewsSentiment {
   direction: "up" | "down"
   confidence: number
-  reason?: string
+  reason: string
+  grainOfSalt: string
 }
 
 const SENTIMENT_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
-const SENTIMENT_MODEL = "llama-3.3-70b-versatile"
 const SENTIMENT_TIMEOUT_MS = 8000
+const SENTIMENT_MAX_RETRIES = 2
+const MIN_GROQ_REQUEST_INTERVAL_MS = 500
 
 let groqClient: Groq | null | undefined
 type RedisClient = ReturnType<typeof createClient>
 
 let redisClient: RedisClient | null | undefined
 let redisConnectionPromise: Promise<RedisClient | null> | null = null
+let groqRequestQueue: Promise<void> = Promise.resolve()
+let nextGroqRequestAt = 0
 
 const getRedisUrl = () => process.env.EPOLL_REDIS_URL || process.env.REDIS_URL || null
 
@@ -29,7 +35,8 @@ const getGroqClient = () => {
   groqClient = process.env.GROQ_API_KEY
     ? new Groq({
         apiKey: process.env.GROQ_API_KEY,
-        maxRetries: 0,
+        // The Groq SDK honors retry-after / retry-after-ms headers when retries are enabled.
+        maxRetries: SENTIMENT_MAX_RETRIES,
         timeout: SENTIMENT_TIMEOUT_MS,
       })
     : null
@@ -93,6 +100,8 @@ const parseSentiment = (value: unknown): NewsSentiment | null => {
 
   const candidate = value as Record<string, unknown>
   const confidence = candidate.confidence
+  const reason = candidate.reason
+  const grainOfSalt = candidate.grainOfSalt
 
   if (candidate.direction !== "up" && candidate.direction !== "down") {
     return null
@@ -102,14 +111,44 @@ const parseSentiment = (value: unknown): NewsSentiment | null => {
     return null
   }
 
-  if (typeof candidate.reason !== "string" || candidate.reason.trim().length === 0) {
+  if (typeof reason !== "string" || reason.trim().length === 0) {
+    return null
+  }
+
+  if (typeof grainOfSalt !== "string" || grainOfSalt.trim().length === 0) {
     return null
   }
 
   return {
     direction: candidate.direction,
     confidence,
-    reason: candidate.reason.trim(),
+    reason: reason.trim(),
+    grainOfSalt: grainOfSalt.trim(),
+  }
+}
+
+const queueGroqRequest = async <T>(task: () => Promise<T>) => {
+  const previousRequest = groqRequestQueue
+  let releaseQueue: () => void = () => {}
+
+  groqRequestQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve
+  })
+
+  await previousRequest
+
+  try {
+    const waitMs = Math.max(0, nextGroqRequestAt - Date.now())
+
+    if (waitMs > 0) {
+      await sleep(waitMs)
+    }
+
+    nextGroqRequestAt = Date.now() + MIN_GROQ_REQUEST_INTERVAL_MS
+
+    return await task()
+  } finally {
+    releaseQueue()
   }
 }
 
@@ -167,29 +206,31 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
   }
 
   try {
-    const completion = await groq.chat.completions.create(
-      {
-        model: SENTIMENT_MODEL,
-        temperature: 0.2,
-        max_completion_tokens: 4000,
-        response_format: {
-          type: "json_object",
+    const completion = await queueGroqRequest(() =>
+      groq.chat.completions.create(
+        {
+          model: SENTIMENT_MODEL_ID,
+          temperature: 0.2,
+          max_completion_tokens: 220,
+          response_format: {
+            type: "json_object",
+          },
+          messages: [
+            {
+              role: "system",
+              content:
+                'You classify likely immediate market reaction to financial headlines. Return only valid JSON with exactly these keys: "direction", "confidence", "reason", "grainOfSalt". "direction" must be "up" or "down". "confidence" must be an integer from 0 to 100. "reason" must be a concise explanation under 220 characters of why markets may react this way. "grainOfSalt" must be a concise caveat under 220 characters explaining what might make the first interpretation incomplete or misleading. Do not wrap the JSON in markdown or add any extra keys.',
+            },
+            {
+              role: "user",
+              content: `Headline: ${cleanTitle}`,
+            },
+          ],
         },
-        messages: [
-          {
-            role: "system",
-            content:
-              'You classify likely immediate market reaction to financial headlines. Return only valid JSON with exactly these keys: "direction", "confidence", "reason". "direction" must be "up" or "down". "confidence" must be an integer from 0 to 100. "reason" must be a short sentence under 200 characters. Do not wrap the JSON in markdown or add any extra keys.',
-          },
-          {
-            role: "user",
-            content: `Headline: ${cleanTitle}`,
-          },
-        ],
-      },
-      {
-        timeout: SENTIMENT_TIMEOUT_MS,
-      },
+        {
+          timeout: SENTIMENT_TIMEOUT_MS,
+        },
+      ),
     )
 
     const rawContent = completion.choices[0]?.message?.content

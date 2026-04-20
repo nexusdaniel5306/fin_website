@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import type { NewsItem } from "@/lib/types"
 import { ArrowDownIcon, ArrowUpIcon } from "@/app/icons"
+import { SENTIMENT_MODEL_LABEL } from "@/lib/sentiment-model"
 
 function formatUtcFromRssDate(dateString: string): { utcLabel: string; isValid: boolean } {
   const parsed = new Date(dateString)
@@ -151,17 +152,26 @@ export function NewsList({ items }: { items: NewsItem[] }) {
             </div>
 
             <div className="rounded-md border border-border bg-background/40 p-4">
-              <p className="text-sm font-medium text-card-foreground">Market reaction (Groq)</p>
+              <p className="text-sm font-medium text-card-foreground">
+                Market reaction ({SENTIMENT_MODEL_LABEL})
+              </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <SentimentBadge sentiment={activeItem.sentiment} />
-                {activeItem.sentiment?.reason ? (
-                  <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">
+              </div>
+              {activeItem.sentiment ? (
+                <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
+                  <p>
+                    <span className="font-medium text-card-foreground">Reason: </span>
                     {activeItem.sentiment.reason}
                   </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No analysis available.</p>
-                )}
-              </div>
+                  <p>
+                    <span className="font-medium text-card-foreground">Grain of salt: </span>
+                    {activeItem.sentiment.grainOfSalt}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">No analysis available.</p>
+              )}
             </div>
 
             <div>
