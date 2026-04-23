@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { setTimeout as sleep } from "node:timers/promises"
 
 import Groq from "groq-sdk"
-import { createClient } from "redis"
+import { getRedisClient } from "@/lib/redis"
 import { SENTIMENT_MODEL_ID } from "@/lib/sentiment-model"
 
 export interface NewsSentiment {
@@ -18,14 +18,8 @@ const SENTIMENT_MAX_RETRIES = 2
 const MIN_GROQ_REQUEST_INTERVAL_MS = 500
 
 let groqClient: Groq | null | undefined
-type RedisClient = ReturnType<typeof createClient>
-
-let redisClient: RedisClient | null | undefined
-let redisConnectionPromise: Promise<RedisClient | null> | null = null
 let groqRequestQueue: Promise<void> = Promise.resolve()
 let nextGroqRequestAt = 0
-
-const getRedisUrl = () => process.env.EPOLL_REDIS_URL || process.env.REDIS_URL || null
 
 const getGroqClient = () => {
   if (groqClient !== undefined) {
@@ -42,47 +36,6 @@ const getGroqClient = () => {
     : null
 
   return groqClient
-}
-
-const getRedisClient = async () => {
-  if (redisClient !== undefined) {
-    return redisClient
-  }
-
-  if (redisConnectionPromise) {
-    return redisConnectionPromise
-  }
-
-  const redisUrl = getRedisUrl()
-
-  if (!redisUrl) {
-    redisClient = null
-    return redisClient
-  }
-
-  const client = createClient({
-    url: redisUrl,
-  })
-
-  client.on("error", () => {
-    // Redis outages should not break page rendering.
-  })
-
-  redisConnectionPromise = client
-    .connect()
-    .then(() => {
-      redisClient = client
-      return client
-    })
-    .catch(() => {
-      redisClient = null
-      return null
-    })
-    .finally(() => {
-      redisConnectionPromise = null
-    })
-
-  return redisConnectionPromise
 }
 
 const normalizeHeadline = (title: string) =>
