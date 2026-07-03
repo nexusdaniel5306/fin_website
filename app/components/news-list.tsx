@@ -146,7 +146,7 @@ export function NewsList({ items }: { items: NewsItem[] }) {
                 {dateValid ? utcLabel : "Could not parse date"}
               </p>
               <p className="break-words">
-                <span className="font-medium text-card-foreground">Original (RSS): </span>
+                <span className="font-medium text-card-foreground">Normalized timestamp: </span>
                 {activeItem.date}
               </p>
             </div>
