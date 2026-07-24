@@ -1,6 +1,6 @@
 # MarketEpoll
 
-MarketEpoll is a lightweight market-news sentiment tracker built with Next.js. It pulls the newest CNBC market headlines as soon as they hit the feed, and utlilzes llama-3.3-70b-versatile through the Groq API to get a blazing fast but thorough AI-generated estimate of how positively or negatively markets may react to each headline.
+MarketEpoll is a lightweight market-news sentiment tracker built with Next.js. It pulls the newest CNBC market headlines as soon as they hit the feed, and uses `openai/gpt-oss-120b` through the Groq API to get a fast but thorough AI-generated estimate of how positively or negatively markets may react to each headline.
 
 The app is designed as a compact, editorial-style market pulse rather than a full news portal. Each item links to the source article, and the detail modal includes the article timestamp, the model's market-reaction label, and a short reasoning string generated through Groq.
 
@@ -20,11 +20,13 @@ The app is designed as a compact, editorial-style market pulse rather than a ful
 ## Tech Stack
 
 - Next.js 15 App Router
+- Node.js 24
 - React 18
 - TypeScript
 - Tailwind CSS
 - Axios for external feed requests
 - Groq SDK for headline sentiment generation
+- Strict JSON Schema outputs for GPT-OSS sentiment responses
 - Redis via the `redis` Node client for sentiment caching and rolling `epoll` storage
 - Vercel for deployment
 
