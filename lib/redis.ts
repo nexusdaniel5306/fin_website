@@ -5,7 +5,8 @@ type RedisClient = ReturnType<typeof createClient>
 let redisClient: RedisClient | null | undefined
 let redisConnectionPromise: Promise<RedisClient | null> | null = null
 
-export const getRedisUrl = () => process.env.EPOLL_REDIS_URL || process.env.REDIS_URL || null
+export const getRedisUrl = () =>
+  process.env.REDIS_URL || process.env.EPOLL_REDIS_URL || null
 
 export const getRedisClient = async () => {
   if (redisClient !== undefined) {

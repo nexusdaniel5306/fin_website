@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "outDir": ".tmp-tests",
+    "rootDir": "."
+  },
+  "include": [
+    "lib/epoll.ts",
+    "lib/news-feed.ts",
+    "lib/sentiment-model.ts",
+    "lib/sentiment-response.ts",
+    "lib/sentiment-history.ts",
+    "lib/sentiment-history-fixtures.ts",
+    "tests/**/*.ts"
+  ]
+}

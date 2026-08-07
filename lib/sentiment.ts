@@ -3,14 +3,16 @@ import { setTimeout as sleep } from "node:timers/promises"
 
 import Groq from "groq-sdk"
 import { getRedisClient } from "@/lib/redis"
-import { SENTIMENT_MODEL_ID } from "@/lib/sentiment-model"
+import {
+  buildSentimentCompletionRequest,
+  SENTIMENT_MODEL_ID,
+} from "@/lib/sentiment-model"
+import {
+  parseSentiment,
+  type NewsSentiment,
+} from "@/lib/sentiment-response"
 
-export interface NewsSentiment {
-  direction: "up" | "down"
-  confidence: number
-  reason: string
-  grainOfSalt: string
-}
+export type { NewsSentiment } from "@/lib/sentiment-response"
 
 const SENTIMENT_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
 const SENTIMENT_TIMEOUT_MS = 8000
@@ -42,42 +44,10 @@ const normalizeHeadline = (title: string) =>
   title.trim().toLowerCase().replace(/\s+/g, " ")
 
 const getSentimentCacheKey = (title: string) => {
-  const headlineHash = createHash("sha256").update(normalizeHeadline(title)).digest("hex")
+  const headlineHash = createHash("sha256")
+    .update(`${SENTIMENT_MODEL_ID}|${normalizeHeadline(title)}`)
+    .digest("hex")
   return `marketepoll:sentiment:${headlineHash}`
-}
-
-const parseSentiment = (value: unknown): NewsSentiment | null => {
-  if (!value || typeof value !== "object") {
-    return null
-  }
-
-  const candidate = value as Record<string, unknown>
-  const confidence = candidate.confidence
-  const reason = candidate.reason
-  const grainOfSalt = candidate.grainOfSalt
-
-  if (candidate.direction !== "up" && candidate.direction !== "down") {
-    return null
-  }
-
-  if (typeof confidence !== "number" || !Number.isInteger(confidence) || confidence < 0 || confidence > 100) {
-    return null
-  }
-
-  if (typeof reason !== "string" || reason.trim().length === 0) {
-    return null
-  }
-
-  if (typeof grainOfSalt !== "string" || grainOfSalt.trim().length === 0) {
-    return null
-  }
-
-  return {
-    direction: candidate.direction,
-    confidence,
-    reason: reason.trim(),
-    grainOfSalt: grainOfSalt.trim(),
-  }
 }
 
 const queueGroqRequest = async <T>(task: () => Promise<T>) => {
@@ -161,25 +131,7 @@ export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment
   try {
     const completion = await queueGroqRequest(() =>
       groq.chat.completions.create(
-        {
-          model: SENTIMENT_MODEL_ID,
-          temperature: 0.2,
-          max_completion_tokens: 220,
-          response_format: {
-            type: "json_object",
-          },
-          messages: [
-            {
-              role: "system",
-              content:
-                'You classify likely immediate market reaction to financial headlines. Return only valid JSON with exactly these keys: "direction", "confidence", "reason", "grainOfSalt". "direction" must be "up" or "down". "confidence" must be an integer from 0 to 100. "reason" must be a concise explanation under 220 characters of why markets may react this way. "grainOfSalt" must be a concise caveat under 220 characters explaining what might make the first interpretation incomplete or misleading. Do not wrap the JSON in markdown or add any extra keys.',
-            },
-            {
-              role: "user",
-              content: `Headline: ${cleanTitle}`,
-            },
-          ],
-        },
+        buildSentimentCompletionRequest(cleanTitle),
         {
           timeout: SENTIMENT_TIMEOUT_MS,
         },
