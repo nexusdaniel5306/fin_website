@@ -1,11 +1,11 @@
 import { collectSentimentFeed } from "@/lib/sentiment-collector"
+import { NEWS_LIST_LIMIT } from "@/lib/news-feed"
 import type { NewsItem } from "@/lib/types"
 import type { EpollSummary } from "@/lib/epoll"
 
 export type { NewsItem } from "@/lib/types"
 
 export const revalidate = 300 // revalidate every 5 minutes
-const NEWS_LIST_LIMIT = 5
 
 export interface NewsSnapshot {
   items: NewsItem[]

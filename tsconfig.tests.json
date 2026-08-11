@@ -18,6 +18,8 @@
   "include": [
     "lib/epoll.ts",
     "lib/news-feed.ts",
+    "lib/news-selection.ts",
+    "lib/sentiment-policy.ts",
     "lib/sentiment-model.ts",
     "lib/sentiment-response.ts",
     "lib/sentiment-history.ts",

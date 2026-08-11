@@ -6,11 +6,11 @@ The app is designed as a compact, editorial-style market pulse rather than a ful
 
 ## What It Does
 
-- Fetches recent CNBC market headlines through the RSS-to-JSON API
-- Normalizes and sorts feed items server-side
+- Fetches recent CNBC Finance, Earnings, and Economy headlines directly through RSS
+- Normalizes, deduplicates, and sorts feed items server-side
 - Keeps a rolling set of the newest 5 stories
-- Generates a market-reaction sentiment for each headline with Groq
-- Caches sentiment responses in Redis to avoid repeated model calls
+- Classifies each item as reporting, analysis, opinion, trade idea, personal finance, or non-financial, then generates its market-reaction sentiment with Groq
+- Caches analysis responses in Redis to avoid repeated model calls
 - Shows a thin `epoll` header with the dominant market tone from the last 8 hours
 - Keeps a rolling 8-hour article count alongside the `epoll` value
 - Shows weekly and 30-day sentiment history grouped by US Eastern calendar date
@@ -19,12 +19,12 @@ The app is designed as a compact, editorial-style market pulse rather than a ful
 
 ## Tech Stack
 
-- Next.js 15 App Router
+- Next.js App Router
 - Node.js 24
 - React 18
 - TypeScript
 - Tailwind CSS
-- Axios for external feed requests
+- Native `fetch` for direct RSS requests
 - Groq SDK for headline sentiment generation
 - Strict JSON Schema outputs for GPT-OSS sentiment responses
 - Redis via the `redis` Node client for sentiment caching and rolling `epoll` storage
@@ -33,11 +33,11 @@ The app is designed as a compact, editorial-style market pulse rather than a ful
 ## How The App Works
 
 1. `app/page.tsx` renders the homepage on the server.
-2. `lib/getNews.ts` fetches the CNBC feed from `rss2json`, normalizes titles, sorts by publish date, and slices the newest five visible items.
-3. Each headline is passed to `lib/sentiment.ts`.
-4. `lib/sentiment.ts` checks Redis first. If a cached sentiment exists, it returns that value.
-5. If the headline is not cached, the app sends the headline title to Groq, parses a strict JSON response, stores it in Redis, and returns the result.
-6. `lib/epoll-store.ts` records recent analyzed articles into a Redis sorted set keyed by publish time and trims anything older than 8 hours.
+2. `lib/news-feed.ts` fetches CNBC Finance, Earnings, and Economy RSS feeds directly, then normalizes, deduplicates, and sorts their stories.
+3. `lib/news-selection.ts` retains every item in the eight-hour window plus the 15 newest candidates; those headlines and descriptions are passed to `lib/sentiment.ts` for one combined editorial classification and market-reaction analysis.
+4. `lib/sentiment.ts` checks Redis first. If a cached analysis exists, it returns that value.
+5. The signed QStash collector sends uncached items to Groq, parses a strict JSON response, stores the analysis in Redis, and returns the result. Homepage rendering remains cache-only, so focused primary stories can remain visible without a sentiment badge during a transient model outage. Only market-relevant reporting is counted in the public signal.
+6. `lib/epoll-store.ts` records recent eligible articles into a Redis sorted set keyed by publish time and trims anything older than 8 hours.
 7. A separate compact Redis hash stores unique direction/confidence pairs for each Eastern calendar date and expires them after 35 days.
 8. The homepage reads the rolling set for the live pulse, while `/sentiment-history` reads the latest 30 daily hashes.
 9. `app/components/epoll-badge.tsx` renders the thin header signal, and `app/components/news-list.tsx` renders the feed cards and modal UI.

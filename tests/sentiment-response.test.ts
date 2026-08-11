@@ -6,16 +6,19 @@ import {
   SENTIMENT_MODEL_ID,
 } from "../lib/sentiment-model"
 import {
+  isMarketRelevantReporting,
   parseSentiment,
   SENTIMENT_RESPONSE_SCHEMA,
 } from "../lib/sentiment-response"
 
 const validSentiment = {
+  contentType: "reporting",
+  marketRelevant: true,
   direction: "up",
   confidence: 84,
   reason: "Lower rates can support valuations and risk appetite.",
   grainOfSalt: "The move may already be priced in.",
-}
+} as const
 
 test("configures GPT-OSS with strict structured outputs", () => {
   const request = buildSentimentCompletionRequest("Federal Reserve cuts rates")
@@ -26,7 +29,7 @@ test("configures GPT-OSS with strict structured outputs", () => {
   assert.equal(request.response_format.json_schema.strict, true)
   assert.deepEqual(
     [...SENTIMENT_RESPONSE_SCHEMA.required].sort(),
-    ["confidence", "direction", "grainOfSalt", "reason"],
+    ["confidence", "contentType", "direction", "grainOfSalt", "marketRelevant", "reason"],
   )
   assert.equal(SENTIMENT_RESPONSE_SCHEMA.additionalProperties, false)
 })
@@ -40,12 +43,19 @@ test("parses an exact sentiment response and trims explanations", () => {
     }),
     validSentiment,
   )
+  assert.equal(isMarketRelevantReporting(validSentiment), true)
+  assert.equal(
+    isMarketRelevantReporting({ ...validSentiment, contentType: "analysis" }),
+    false,
+  )
 })
 
 test("rejects malformed or schema-incompatible sentiment responses", () => {
   const invalidValues = [
     null,
     [],
+    { ...validSentiment, contentType: "blog" },
+    { ...validSentiment, marketRelevant: "yes" },
     { ...validSentiment, direction: "mixed" },
     { ...validSentiment, confidence: 84.5 },
     { ...validSentiment, confidence: -1 },

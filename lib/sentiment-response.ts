@@ -1,4 +1,14 @@
+export type NewsContentType =
+  | "reporting"
+  | "analysis"
+  | "opinion"
+  | "trade_idea"
+  | "personal_finance"
+  | "non_financial"
+
 export interface NewsSentiment {
+  contentType: NewsContentType
+  marketRelevant: boolean
   direction: "up" | "down"
   confidence: number
   reason: string
@@ -6,11 +16,37 @@ export interface NewsSentiment {
 }
 
 const MAX_EXPLANATION_LENGTH = 220
-const SENTIMENT_KEYS = ["confidence", "direction", "grainOfSalt", "reason"]
+const SENTIMENT_KEYS = [
+  "confidence",
+  "contentType",
+  "direction",
+  "grainOfSalt",
+  "marketRelevant",
+  "reason",
+]
+
+export const isMarketRelevantReporting = (sentiment: NewsSentiment) =>
+  sentiment.contentType === "reporting" && sentiment.marketRelevant
 
 export const SENTIMENT_RESPONSE_SCHEMA = {
   type: "object",
   properties: {
+    contentType: {
+      type: "string",
+      enum: [
+        "reporting",
+        "analysis",
+        "opinion",
+        "trade_idea",
+        "personal_finance",
+        "non_financial",
+      ],
+      description: "The primary editorial type of the item.",
+    },
+    marketRelevant: {
+      type: "boolean",
+      description: "Whether the item is likely to affect financial markets or macro conditions.",
+    },
     direction: {
       type: "string",
       enum: ["up", "down"],
@@ -31,7 +67,14 @@ export const SENTIMENT_RESPONSE_SCHEMA = {
       description: "A concise caveat under 220 characters.",
     },
   },
-  required: ["direction", "confidence", "reason", "grainOfSalt"],
+  required: [
+    "contentType",
+    "marketRelevant",
+    "direction",
+    "confidence",
+    "reason",
+    "grainOfSalt",
+  ],
   additionalProperties: false,
 } as const
 
@@ -42,7 +85,9 @@ export const parseSentiment = (value: unknown): NewsSentiment | null => {
 
   const candidate = value as Record<string, unknown>
   const keys = Object.keys(candidate).sort()
+  const contentType = candidate.contentType
   const confidence = candidate.confidence
+  const marketRelevant = candidate.marketRelevant
   const reason = candidate.reason
   const grainOfSalt = candidate.grainOfSalt
 
@@ -50,6 +95,21 @@ export const parseSentiment = (value: unknown): NewsSentiment | null => {
     keys.length !== SENTIMENT_KEYS.length ||
     keys.some((key, index) => key !== SENTIMENT_KEYS[index])
   ) {
+    return null
+  }
+
+  if (
+    contentType !== "reporting" &&
+    contentType !== "analysis" &&
+    contentType !== "opinion" &&
+    contentType !== "trade_idea" &&
+    contentType !== "personal_finance" &&
+    contentType !== "non_financial"
+  ) {
+    return null
+  }
+
+  if (typeof marketRelevant !== "boolean") {
     return null
   }
 
@@ -83,6 +143,8 @@ export const parseSentiment = (value: unknown): NewsSentiment | null => {
   }
 
   return {
+    contentType,
+    marketRelevant,
     direction: candidate.direction,
     confidence,
     reason: reason.trim(),

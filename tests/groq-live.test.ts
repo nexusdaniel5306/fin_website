@@ -46,7 +46,7 @@ test(
       assert.ok(sentiment, `Expected schema-compliant sentiment for: ${headline}`)
       assert.deepEqual(
         Object.keys(rawSentiment).sort(),
-        ["confidence", "direction", "grainOfSalt", "reason"],
+        ["confidence", "contentType", "direction", "grainOfSalt", "marketRelevant", "reason"],
       )
       assert.ok(sentiment.reason.length <= 220)
       assert.ok(sentiment.grainOfSalt.length <= 220)

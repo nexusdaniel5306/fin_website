@@ -10,7 +10,8 @@ import {
 } from "@/lib/epoll"
 import { getRedisClient } from "@/lib/redis"
 
-const EPOLL_ROLLING_KEY = "marketepoll:epoll:rolling"
+// Keep pre-classification members out of the reporting-only rolling signal.
+const EPOLL_ROLLING_KEY = "marketepoll:epoll:rolling:v2"
 const EPOLL_STORE_TTL_SECONDS = 60 * 60 * 24
 
 interface EpollArticleRecordInput {

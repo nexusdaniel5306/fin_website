@@ -11,12 +11,17 @@ import {
   parseSentiment,
   type NewsSentiment,
 } from "@/lib/sentiment-response"
+import {
+  resolveSentimentWithPolicy,
+  type SentimentCollectionMode,
+  type SentimentGenerationBudget,
+} from "@/lib/sentiment-policy"
 
 export type { NewsSentiment } from "@/lib/sentiment-response"
 
 const SENTIMENT_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
 const SENTIMENT_TIMEOUT_MS = 8000
-const SENTIMENT_MAX_RETRIES = 2
+export const SENTIMENT_MAX_RETRIES = 0
 const MIN_GROQ_REQUEST_INTERVAL_MS = 500
 
 let groqClient: Groq | null | undefined
@@ -31,7 +36,7 @@ const getGroqClient = () => {
   groqClient = process.env.GROQ_API_KEY
     ? new Groq({
         apiKey: process.env.GROQ_API_KEY,
-        // The Groq SDK honors retry-after / retry-after-ms headers when retries are enabled.
+        // Background collection retries failed items on the next QStash run instead.
         maxRetries: SENTIMENT_MAX_RETRIES,
         timeout: SENTIMENT_TIMEOUT_MS,
       })
@@ -109,60 +114,74 @@ const writeCachedSentiment = async (title: string, sentiment: NewsSentiment) => 
   }
 }
 
-export const getHeadlineSentiment = async (title: string): Promise<NewsSentiment | null> => {
+export const getHeadlineSentiment = async (
+  title: string,
+  description = "",
+  {
+    mode = "cache-only",
+    generationBudget,
+  }: {
+    mode?: SentimentCollectionMode
+    generationBudget?: SentimentGenerationBudget
+  } = {},
+): Promise<NewsSentiment | null> => {
   const cleanTitle = title.trim()
 
   if (!cleanTitle) {
     return null
   }
 
-  const cachedSentiment = await readCachedSentiment(cleanTitle)
+  const result = await resolveSentimentWithPolicy({
+    mode,
+    generationBudget,
+    readCached: () => readCachedSentiment(cleanTitle),
+    generate: async () => {
+      const groq = getGroqClient()
 
-  if (cachedSentiment) {
-    return cachedSentiment
+      if (!groq) {
+        return null
+      }
+
+      try {
+        const completion = await queueGroqRequest(() =>
+          groq.chat.completions.create(
+            buildSentimentCompletionRequest(cleanTitle, description),
+            {
+              timeout: SENTIMENT_TIMEOUT_MS,
+            },
+          ),
+        )
+
+        const rawContent = completion.choices[0]?.message?.content
+
+        if (!rawContent) {
+          console.error("Groq sentiment response was empty", { title: cleanTitle })
+          return null
+        }
+
+        const sentiment = parseSentiment(JSON.parse(rawContent))
+
+        if (!sentiment) {
+          console.error("Groq sentiment response did not match expected shape", {
+            title: cleanTitle,
+            rawContent,
+          })
+        }
+
+        return sentiment
+      } catch (error) {
+        console.error("Groq sentiment request failed", {
+          title: cleanTitle,
+          error,
+        })
+        return null
+      }
+    },
+  })
+
+  if (result.source === "generated" && result.value) {
+    await writeCachedSentiment(cleanTitle, result.value)
   }
 
-  const groq = getGroqClient()
-
-  if (!groq) {
-    return null
-  }
-
-  try {
-    const completion = await queueGroqRequest(() =>
-      groq.chat.completions.create(
-        buildSentimentCompletionRequest(cleanTitle),
-        {
-          timeout: SENTIMENT_TIMEOUT_MS,
-        },
-      ),
-    )
-
-    const rawContent = completion.choices[0]?.message?.content
-
-    if (!rawContent) {
-      console.error("Groq sentiment response was empty", { title: cleanTitle })
-      return null
-    }
-
-    const sentiment = parseSentiment(JSON.parse(rawContent))
-
-    if (!sentiment) {
-      console.error("Groq sentiment response did not match expected shape", {
-        title: cleanTitle,
-        rawContent,
-      })
-      return null
-    }
-
-    await writeCachedSentiment(cleanTitle, sentiment)
-
-    return sentiment
-  } catch (error) {
-    console.error("Groq sentiment request failed", {
-      title: cleanTitle,
-      error,
-    })
-    return null
-  }
+  return result.value
 }

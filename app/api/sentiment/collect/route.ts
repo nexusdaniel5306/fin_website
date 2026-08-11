@@ -7,16 +7,24 @@ export const maxDuration = 120
 
 const collect = async () => {
   try {
-    const result = await collectSentimentFeed({ requirePersistence: true })
+    const result = await collectSentimentFeed({
+      mode: "scheduled",
+      requirePersistence: true,
+    })
 
     if (result.recorded > 0) {
       revalidatePath("/sentiment-history")
+    }
+
+    if (result.generated > 0 || result.recorded > 0) {
+      revalidatePath("/")
     }
 
     return Response.json({
       ok: true,
       fetched: result.fetched,
       analyzed: result.analyzed,
+      generated: result.generated,
       recorded: result.recorded,
       skipped: result.skipped,
     })
